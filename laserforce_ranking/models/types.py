@@ -558,7 +558,7 @@ class EventType(models.TextChoices):
     BLAST_DAMAGE = "0D05"
     BLAST_DOWN = "0D06"
     SPLASH = "0D07"
-    
+
     BATTLEFIELD_PROMOTION = "0E00"
 
 class ColorCode(models.TextChoices):
@@ -643,8 +643,9 @@ class EntityType(models.TextChoices):
 class EntityEndType(models.IntegerChoices):
     KICKED = 1
     MISSION_COMPLETED = 2
-    ELIMINATED = 4
-    KICKED_BY_REFEREE = 17 # legacy, livesLeft should be set to 0 in this case
+    TIME_EXPIRED = 3
+    LIVES_DEPLETED = 4
+    KICKED_BY_REFEREE = 17 # livesLeft should be set to 0 in this case
 
 class Permission(models.IntegerChoices):
     USER = 0

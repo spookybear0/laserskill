@@ -69,8 +69,8 @@ def get_games(request, player_entity_id=None, site_id=None):
             outcome=Case(
                 # if there is no last team standing, outcome was based on score
                 When(winner__isnull=True, then=Value("Draw")),
-                When(last_team_standing__isnull=False, then=Value("Score")),
-                When(last_team_standing__isnull=True, then=Value("Elimination")),
+                When(last_team_standing__isnull=True, then=Value("Score")),
+                When(last_team_standing__isnull=False, then=Value("Elimination")),
                 default=Value("Unknown"),
                 output_field=CharField()
             ),
