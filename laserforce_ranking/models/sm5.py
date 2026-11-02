@@ -225,9 +225,9 @@ class SM5Game(Game):
     
     # get_unranked_reason():
 
-    async def get_teams(self) -> tuple[Team, Team]:
+    def get_teams(self) -> tuple[Team, Team]:
         """Returns the two teams in the game. This excludes the neutral team"""
-        teams = [team async for team in self.teams.exclude(name="Neutral").exclude(color_enum=0).all()]
+        teams = [team for team in self.teams.exclude(name="Neutral").exclude(color_enum=0).all()]
         return teams[0], teams[1]
 
     async def get_medic_death_time(self, team: TeamType) -> Optional[int]:

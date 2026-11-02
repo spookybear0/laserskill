@@ -57,7 +57,7 @@ class TeamBuilderView(View):
 
             new_teams = []
             new_roles = []
-            teams = await game.get_teams()
+            teams = game.get_teams()
             logger.debug(f"Retrieved teams from game: {teams}")
 
             for team in teams:

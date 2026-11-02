@@ -859,7 +859,7 @@ async def process_sm5(
         # winner
 
         # get all teams in the game.
-        teams_ = await game.get_teams()
+        teams_ = game.get_teams()
 
         scores = {team: team.score for team in teams_}
 

@@ -359,7 +359,7 @@ class Game(models.Model):
             "after": "current"
         }.get(timeframe, None)
 
-        teams = await self.get_teams()
+        teams = self.get_teams()
 
         # get the win chance for red team
         # this is based on the previous_elo of the player's entity_end

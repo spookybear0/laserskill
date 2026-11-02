@@ -561,7 +561,7 @@ class EventType(models.TextChoices):
 
     BATTLEFIELD_PROMOTION = "0E00"
 
-class ColorCode(models.TextChoices):
+class ColorCode(models.IntegerChoices):
     NONE = 0
     RED = 1
     GREEN = 2

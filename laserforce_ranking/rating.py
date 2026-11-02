@@ -3,13 +3,18 @@ from typing import List, Tuple, Union, Optional, TYPE_CHECKING
 from copy import deepcopy
 from .models.types import EntityType, IntRole, GameType
 if TYPE_CHECKING:
-    from .models import Player, Game
+    from .models import Game
     from .models.sm5 import SM5Game
 
 from openskill.models import PlackettLuceRating, PlackettLuce
 from openskill.models.weng_lin.common import phi_major
 import logging
 from asgiref.sync import sync_to_async
+from django.core.cache import cache
+from django.tasks import task
+import concurrent.futures
+from django.utils import timezone
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -442,7 +447,7 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
     team1 = []
     team2 = []
 
-    teams = await game.get_teams()
+    teams = game.get_teams()
 
     async for entity_start in game.entity_starts.filter(type=EntityType.PLAYER).select_related("team").all():
         team_color = entity_start.team.color_name
@@ -625,3 +630,80 @@ async def recalculate_rankings(start_game_id: Optional[int] = None):
 
     #async for game in LaserballGame.objects.filter(ranked=True).order_by("start_time").all():
     #    await update_laserball_rankings(game)
+
+predictive_accuracy_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+def _calculate_predictive_accuracy() -> float:
+    """
+    Get the predictive accuracy of the current ratings
+    """
+
+    predictive_accuracy = cache.get("predictive_accuracy")
+
+    if predictive_accuracy is not None:
+        return predictive_accuracy
+
+    from .models import SM5Game, Game, Player
+
+    logger.info("Calculating predictive accuracy of current ratings")
+
+    total_games = 0
+    correct_predictions = 0
+
+    for game in SM5Game.objects.filter(ranked=True).order_by("start_time").all():
+        teams = game.get_teams()
+        if len(teams) != 2:
+            continue
+
+        print(f"Calculating predictive accuracy for game {game.tdf_name} (ID: {game.id})")
+
+        team1 = []
+        team2 = []
+
+        for entity_start in game.entity_starts.filter(type=EntityType.PLAYER).select_related("team").all():
+            team_color = entity_start.team.color_name
+            if team_color == (teams[0].color_name):
+                player = Player.objects.filter(entity_id=entity_start.entity_id).first()
+                team1.append(player if player else FakeDefaultPlayer(game.site_id))
+            else:
+                player = Player.objects.filter(entity_id=entity_start.entity_id).first()
+                team2.append(player if player else FakeDefaultPlayer(game.site_id))
+
+        # general ratings
+        team1_general = list(map(lambda player: Rating(player.ratings["global"]["sm5"]["mu"], player.ratings["global"]["sm5"]["sigma"]), team1))
+        team2_general = list(map(lambda player: Rating(player.ratings["global"]["sm5"]["mu"], player.ratings["global"]["sm5"]["sigma"]), team2))
+
+        prediction = model.predict_win([team1_general, team2_general])
+
+        game_winner = game.winner
+        winner_enum = game_winner.enum if game_winner else None
+        if winner_enum == teams[0].enum:
+            actual_result = [1, 0] # team 1 won, team 2 lost
+        elif winner_enum == teams[1].enum:
+            actual_result = [0, 1] # team 2 won, team 1 lost
+        else:
+            actual_result = [0.5, 0.5] # tie
+
+        total_games += 1
+        if (prediction[0] > prediction[1] and actual_result[0] > actual_result[1]) or (prediction[0] < prediction[1] and actual_result[0] < actual_result[1]):
+            correct_predictions += 1
+
+    accuracy = correct_predictions / total_games if total_games > 0 else 0
+
+    logger.info(f"Predictive accuracy: {accuracy:.2%} ({correct_predictions}/{total_games})")
+
+    cache.set("predictive_accuracy", accuracy, timeout=None)
+    cache.set("predictive_accuracy_last_run", timezone.now(), timeout=None)
+
+    return accuracy
+
+def calculate_predictive_accuracy() -> float:
+    accuracy = cache.get("predictive_accuracy")
+    last_run = cache.get("predictive_accuracy_last_run")
+    
+    now = timezone.now()
+    if not last_run or (now - last_run) > timedelta(hours=24):
+        cache.set("predictive_accuracy_last_run", now, timeout=None)
+        predictive_accuracy_executor.submit(_calculate_predictive_accuracy)
+    
+    return accuracy if accuracy is not None else 0.0
