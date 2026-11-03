@@ -1,7 +1,7 @@
 from script import setup_environment
 setup_environment()
 import click
-from laserforce_ranking.models import Player, SM5Game, EntityStart
+from laserskill.models import Player, SM5Game, EntityStart
 import time
 
 @click.command()

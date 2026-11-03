@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ SITE_BY_ID[game.site_id].name }} @ {{ game.local_start_time.strftime('%H:%M') }} | LF Ranking{% endblock %}
+{% block title %}{{ SITE_BY_ID[game.site_id].name }} @ {{ game.local_start_time.strftime('%H:%M') }} | LaserSkill{% endblock %}
 
 
-{% block meta_description %}SM5 game on LF Ranking
+{% block meta_description %}SM5 game on LaserSkill
 {{ SITE_BY_ID[game.site_id].name }} @ {{ game.local_start_time.strftime('%H:%M') }} on {{ game.local_start_time.strftime("%b %d, %Y") }}{% if game.ranked %} · Ranked{% endif %}{% endblock %}
 
-{% block og_title %}{{ teams[0].name }} {{ teams[0].score }} - {{ teams[1].name }} {{ teams[1].score }} | LF Ranking{% endblock %}
+{% block og_title %}{{ teams[0].name }} {{ teams[0].score }} - {{ teams[1].name }} {{ teams[1].score }} | LaserSkill{% endblock %}
 
 {% block og_description %}SM5 · {{ SITE_BY_ID[game.site_id].name }} · {{ game.local_start_time.strftime("%b %d, %Y") }} {% if game.ranked %}· Ranked{% endif %}{% endblock %}
 
@@ -22,7 +22,7 @@
 {% endblock %}
 
 {% block twitter_title %}
-    {{ teams[0].name }} {{ teams[0].score }} - {{ teams[1].name }} {{ teams[1].score }} | LF Ranking
+    {{ teams[0].name }} {{ teams[0].score }} - {{ teams[1].name }} {{ teams[1].score }} | LaserSkill
 {% endblock %}
 
 {% block twitter_description %}

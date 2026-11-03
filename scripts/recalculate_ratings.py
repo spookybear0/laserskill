@@ -2,7 +2,7 @@ from script import setup_environment
 setup_environment()
 import asyncclick as click
 
-from laserforce_ranking.rating import recalculate_rankings
+from laserskill.rating import recalculate_rankings
 import time
 
 @click.command()

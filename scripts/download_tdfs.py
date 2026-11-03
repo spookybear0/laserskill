@@ -2,7 +2,7 @@ from script import setup_environment
 setup_environment()
 import asyncclick as click
 
-from laserforce_ranking.tdf import download_tdfs
+from laserskill.tdf import download_tdfs
 
 
 @click.command()
