@@ -27,7 +27,7 @@ SECRET_KEY = config["secret_key"]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config.get("debug", True)
 
-ALLOWED_HOSTS = ["nextlaserforce.spoo.uk", "laserforce.spoo.uk", "localhost"]
+ALLOWED_HOSTS = ["nextlaserforce.spoo.uk", "laserforce.spoo.uk", "localhost", "laserskill.net"]
 CSRF_TRUSTED_ORIGINS = ["https://nextlaserforce.spoo.uk", "https://laserforce.spoo.uk", "http://localhost", "https://laserskill.net"]
 
 if not DEBUG:
