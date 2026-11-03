@@ -28,7 +28,7 @@ SECRET_KEY = config["secret_key"]
 DEBUG = config.get("debug", True)
 
 ALLOWED_HOSTS = ["nextlaserforce.spoo.uk", "laserforce.spoo.uk", "localhost"]
-CSRF_TRUSTED_ORIGINS = ["https://nextlaserforce.spoo.uk", "https://laserforce.spoo.uk", "http://localhost"]
+CSRF_TRUSTED_ORIGINS = ["https://nextlaserforce.spoo.uk", "https://laserforce.spoo.uk", "http://localhost", "https://laserskill.net"]
 
 if not DEBUG:
     CACHES = {
