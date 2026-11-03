@@ -652,28 +652,22 @@ def _calculate_predictive_accuracy() -> float:
 
     for game in SM5Game.objects.filter(ranked=True).order_by("start_time").all():
         teams = game.get_teams()
+        
         if len(teams) != 2:
             continue
-
-        print(f"Calculating predictive accuracy for game {game.tdf_name} (ID: {game.id})")
 
         team1 = []
         team2 = []
 
-        for entity_start in game.entity_starts.filter(type=EntityType.PLAYER).select_related("team").all():
-            team_color = entity_start.team.color_name
+        for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
+            team_color = entity_end.entity.team.color_name
+            rating = entity_end.get_rating("previous", False, False)
             if team_color == (teams[0].color_name):
-                player = Player.objects.filter(entity_id=entity_start.entity_id).first()
-                team1.append(player if player else FakeDefaultPlayer(game.site_id))
+                team1.append(rating)
             else:
-                player = Player.objects.filter(entity_id=entity_start.entity_id).first()
-                team2.append(player if player else FakeDefaultPlayer(game.site_id))
-
-        # general ratings
-        team1_general = list(map(lambda player: Rating(player.ratings["global"]["sm5"]["mu"], player.ratings["global"]["sm5"]["sigma"]), team1))
-        team2_general = list(map(lambda player: Rating(player.ratings["global"]["sm5"]["mu"], player.ratings["global"]["sm5"]["sigma"]), team2))
-
-        prediction = model.predict_win([team1_general, team2_general])
+                team2.append(rating)
+            
+        prediction = model.predict_win([team1, team2])
 
         game_winner = game.winner
         winner_enum = game_winner.enum if game_winner else None
@@ -685,7 +679,9 @@ def _calculate_predictive_accuracy() -> float:
             actual_result = [0.5, 0.5] # tie
 
         total_games += 1
-        if (prediction[0] > prediction[1] and actual_result[0] > actual_result[1]) or (prediction[0] < prediction[1] and actual_result[0] < actual_result[1]):
+        if (prediction[0] > prediction[1] and actual_result[0] > actual_result[1]) or \
+           (prediction[0] < prediction[1] and actual_result[0] < actual_result[1]) or \
+           (prediction[0] == prediction[1] and actual_result[0] == actual_result[1]):
             correct_predictions += 1
 
     accuracy = correct_predictions / total_games if total_games > 0 else 0

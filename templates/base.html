@@ -66,7 +66,17 @@
                 </label>
                 <div class="px-4">Laserforce Ranking</div>
             </nav>
+
             <div class="container mx-auto p-8 flex-1 min-h-0 w-full flex flex-col sm:overflow-auto">
+                <div class="flex justify-center">
+                    {% for banner in banners %}
+                        {% if banner.is_visible %}
+                        <div class="mt-5 mb-10 rounded-xl p-4 w-full text-center w-full shadow-lg" style="background-color: {{ banner.color }}; color: {{ banner.text_color }};">
+                            {{ banner.content|safe }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
                 {% block content %}{% endblock %}
             </div>
         </div>
