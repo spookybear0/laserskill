@@ -10,6 +10,7 @@ from django_enum import EnumField
 from django.urls import reverse
 from typing import List, Optional
 from zoneinfo import ZoneInfo
+from asgiref.sync import sync_to_async
 
 def suffix(date: int) -> str:
     return {1: "st", 2: "nd", 3: "rd"}.get(date % 20, "th")
@@ -359,7 +360,7 @@ class Game(models.Model):
             "after": "current"
         }.get(timeframe, None)
 
-        teams = self.get_teams()
+        teams = await sync_to_async(self.get_teams)()
 
         # get the win chance for red team
         # this is based on the previous_elo of the player's entity_end

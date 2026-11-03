@@ -57,7 +57,7 @@ class TeamBuilderView(View):
 
             new_teams = []
             new_roles = []
-            teams = game.get_teams()
+            teams = await sync_to_async(game.get_teams)()
             logger.debug(f"Retrieved teams from game: {teams}")
 
             for team in teams:
@@ -96,7 +96,7 @@ class TeamBuilderView(View):
             "match_roles_enabled": True,
         }
 
-        return render(request, "team_builder.html", context=context)
+        return await sync_to_async(render)(request, "team_builder.html", context=context)
     
 class TeamBuilderPlayersView(ListView):
     model = Player
