@@ -1,7 +1,7 @@
 from django.views import View
 from django.views.generic.detail import DetailView
 from django.shortcuts import render
-from laserskill.models import Game, Player
+from laserskill.models import Game, Player, SM5Game
 from laserskill.matchmake import get_win_chance
 from asgiref.sync import sync_to_async
 
@@ -18,9 +18,9 @@ class GameView(DetailView):
         tdf_name = self.kwargs.get("tdf_name")
         return Game.objects.get(tdf_name=tdf_name)
     
-    async def sm5(self, game: Game, context):
+    async def sm5(self, game: SM5Game, context):
         context["rematchmake_obj"] = {}
-        context["teams"] = [team async for team in game.teams.order_by("-score")][:2]
+        context["teams"] = await sync_to_async(game.get_teams)()
         context["win_chances"] = await game.get_win_chance_before_game(consider_site=False, consider_roles=False)
 
         if game.ranked:

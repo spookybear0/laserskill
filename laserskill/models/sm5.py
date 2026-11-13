@@ -246,7 +246,7 @@ class SM5Game(Game):
             return medic_death_event.time
         return None
     
-    async def _get_team_doubles_percent(self, team: TeamType) -> float:
+    async def calculate_team_doubles_percent(self, team: TeamType) -> float:
         """
         Gets how well a team did doubles while medic is still alive.
 

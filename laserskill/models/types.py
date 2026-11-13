@@ -392,6 +392,9 @@ NAME_TO_TEAM = {
     "Green": TeamType.GREEN,
     "Blue": TeamType.BLUE,
     "Ice": TeamType.BLUE,
+    "Solid Red": TeamType.RED,
+    "Solid Green": TeamType.GREEN,
+    "Solid Blue": TeamType.BLUE,
     # some arenas have different team names
     # laserball ramps
     "Yellow": TeamType.YELLOW,

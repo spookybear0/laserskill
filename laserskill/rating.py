@@ -223,10 +223,13 @@ class FakeDefaultPlayer:
     def __init__(self, site_id: int):
         self.ratings = {"global": deepcopy(BLANK_RATING_PER_SITE), site_id: deepcopy(BLANK_RATING_PER_SITE)}
 
+    def save(self):
+        pass
+
     async def asave(self):
         pass
 
-async def update_sm5_rankings(game: "SM5Game") -> bool:
+def update_sm5_rankings(game: "SM5Game") -> bool:
     """
     Updates the sm5 ratings for a game
     it first calculates the individual player ratings
@@ -245,8 +248,8 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
 
     # need to update previous rating and for each entity end object
 
-    async for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
-        player = await Player.objects.filter(entity_id=entity_end.entity.entity_id).afirst()
+    for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
+        player = Player.objects.filter(entity_id=entity_end.entity.entity_id).first()
 
         if player:
             ratings = player.ratings
@@ -258,7 +261,7 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
         if game.site_id not in ratings and player:
             ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
             player.ratings = ratings
-            await player.asave()
+            player.save()
 
         entity_end.ratings = {
             "previous": {
@@ -281,11 +284,11 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
             }
         }
 
-        await entity_end.asave()
+        entity_end.save()
 
     # go through all events for each game
     
-    async def process_event(event: Event):
+    def process_event(event: Event):
         if event.type in [EventType.DAMAGED_OPPONENT, EventType.DOWNED_OPPONENT]:
             hit_mu = SM5_HIT_WEIGHT_MU
             hit_sigma = SM5_HIT_WEIGHT_SIGMA
@@ -299,13 +302,13 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
         else:
             return
 
-        shooter = await EntityStart.objects.filter(entity_id=event.entity1).afirst()
-        shooter_player = await Player.objects.filter(entity_id=shooter.entity_id).afirst()
+        shooter = EntityStart.objects.filter(entity_id=event.entity1).first()
+        shooter_player = Player.objects.filter(entity_id=shooter.entity_id).first()
         if shooter_player:
             # make sure we have a rating for this site, if not, create a new one
             if game.site_id not in shooter_player.ratings:
                 shooter_player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                await shooter_player.asave()
+                shooter_player.save()
             shooter_rating = shooter_player.ratings
         else:
             # not logged in, we could assume the default rating
@@ -313,12 +316,12 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
             # skip this event if the shooter is not logged in
             return
 
-        target = await EntityStart.objects.filter(entity_id=event.entity2).afirst()
-        target_player = await Player.objects.filter(entity_id=target.entity_id).afirst()
+        target = EntityStart.objects.filter(entity_id=event.entity2).first()
+        target_player = Player.objects.filter(entity_id=target.entity_id).first()
         if target_player:
             if game.site_id not in target_player.ratings:
                 target_player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                await target_player.asave()
+                target_player.save()
             target_rating = target_player.ratings
         else:
             return
@@ -429,18 +432,18 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
 
         if shooter_player:
             shooter_player.ratings = shooter_rating
-            await shooter_player.asave()
+            shooter_player.save()
 
         if target_player:
             target_player.ratings = target_rating
-            await target_player.asave()
+            target_player.save()
     
-    async for event in game.events.filter(
+    for event in game.events.filter(
         type__in=[EventType.DAMAGED_OPPONENT, EventType.DOWNED_OPPONENT,
             EventType.MISSILE_DAMAGE_OPPONENT,
             EventType.MISSILE_DOWN_OPPONENT]
     ).order_by("time").all():  # only get the events that we need
-        await process_event(event)
+        process_event(event)
 
     # rate game
 
@@ -449,23 +452,23 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
 
     teams = game.get_teams()
 
-    async for entity_start in game.entity_starts.filter(type=EntityType.PLAYER).select_related("team").all():
+    for entity_start in game.entity_starts.filter(type=EntityType.PLAYER).select_related("team").all():
         team_color = entity_start.team.color_name
         if team_color == (teams[0].color_name):
-            player = await Player.objects.filter(entity_id=entity_start.entity_id).afirst()
+            player = Player.objects.filter(entity_id=entity_start.entity_id).first()
 
             # ensure that this player has a rating for this site, if not, create a new one
             if player and game.site_id not in player.ratings:
                 player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                await player.asave()
+                player.save()
 
             team1.append((player if player else FakeDefaultPlayer(game.site_id), entity_start))
         else:
-            player = await Player.objects.filter(entity_id=entity_start.entity_id).afirst()
+            player = Player.objects.filter(entity_id=entity_start.entity_id).first()
 
             if player and game.site_id not in player.ratings:
                 player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                await player.asave()
+                player.save()
 
             team2.append((player if player else FakeDefaultPlayer(game.site_id), entity_start))
 
@@ -473,8 +476,7 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
     team1_general = list(map(lambda pair: Rating(pair[0].ratings["global"]["sm5"]["mu"], pair[0].ratings["global"]["sm5"]["sigma"]), team1))
     team2_general = list(map(lambda pair: Rating(pair[0].ratings["global"]["sm5"]["mu"], pair[0].ratings["global"]["sm5"]["sigma"]), team2))
 
-    game_winner = await sync_to_async(lambda: game.winner)()
-    winner_enum = game_winner.enum if game_winner else None
+    winner_enum = (game.winner).enum if game.winner else None
     if winner_enum == teams[0].enum:
         ranks = [0, 1] # team 1 won, team 2 lost
     elif winner_enum == teams[1].enum:
@@ -487,12 +489,12 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_general_new):
         player.ratings["global"]["sm5"]["mu"] = rating.mu
         player.ratings["global"]["sm5"]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
 
     for (player, es), rating in zip(team2, team2_general_new):
         player.ratings["global"]["sm5"]["mu"] = rating.mu
         player.ratings["global"]["sm5"]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
 
     # general role-specific ratings
     team1_general_role = list(map(lambda pair: Rating(pair[0].ratings["global"][introle_to_name(pair[1].role)]["mu"], pair[0].ratings["global"][introle_to_name(pair[1].role)]["sigma"]), team1))
@@ -504,12 +506,12 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_general_role_new):
         player.ratings["global"][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings["global"][introle_to_name(es.role)]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
     
     for (player, es), rating in zip(team2, team2_general_role_new):
         player.ratings["global"][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings["global"][introle_to_name(es.role)]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
 
     # site-specific ratings
     team1_site = list(map(lambda pair: Rating(pair[0].ratings[game.site_id]["sm5"]["mu"], pair[0].ratings[game.site_id]["sm5"]["sigma"]), team1))
@@ -521,12 +523,12 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_site_new):
         player.ratings[game.site_id]["sm5"]["mu"] = rating.mu
         player.ratings[game.site_id]["sm5"]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
 
     for (player, es), rating in zip(team2, team2_site_new):
         player.ratings[game.site_id]["sm5"]["mu"] = rating.mu
         player.ratings[game.site_id]["sm5"]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
 
     # site-specific role ratings
 
@@ -539,17 +541,17 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_site_role_new):
         player.ratings[game.site_id][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings[game.site_id][introle_to_name(es.role)]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
 
     for (player, es), rating in zip(team2, team2_site_role_new):
         player.ratings[game.site_id][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings[game.site_id][introle_to_name(es.role)]["sigma"] = rating.sigma
-        await player.asave()
+        player.save()
 
     # need to update current rating and for each entity end object
 
-    async for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
-        player = await Player.objects.filter(entity_id=entity_end.entity.entity_id).afirst()
+    for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
+        player = Player.objects.filter(entity_id=entity_end.entity.entity_id).first()
 
         if player:
             ratings = player.ratings
@@ -558,7 +560,7 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
 
         if game.site_id not in ratings:
             ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-            await player.asave()
+            player.save()
 
         entity_end.ratings.update({
             "current": {
@@ -581,14 +583,14 @@ async def update_sm5_rankings(game: "SM5Game") -> bool:
             }
         })
 
-        await entity_end.asave()
+        entity_end.save()
 
     return True
 
-async def update_laserball_rankings(game: "Game"):
+def update_laserball_rankings(game: "Game"):
     pass # TODO: rankings for laserball games
 
-async def reset_rankings():
+def reset_rankings():
     """
     Reset all player rankings to default values
     """
@@ -596,11 +598,11 @@ async def reset_rankings():
 
     logger.info("Resetting all player rankings to default values")
 
-    async for player in Player.objects.all():
+    for player in Player.objects.all():
         player.ratings = {"global": deepcopy(BLANK_RATING_PER_SITE)}
-        await player.asave()
+        player.save()
 
-async def recalculate_rankings(start_game_id: Optional[int] = None):
+def recalculate_rankings(start_game_id: Optional[int] = None):
     """
     Recalculate all player rankings from scratch
     """
@@ -615,25 +617,25 @@ async def recalculate_rankings(start_game_id: Optional[int] = None):
     query = SM5Game.objects.filter(ranked=True).order_by("start_time")
 
     if start_game_id is not None:
-        game = await SM5Game.objects.filter(id=start_game_id).afirst()
+        game = SM5Game.objects.filter(id=start_game_id).first()
         query = query.filter(start_time__gte=game.start_time)
     else:
-        await reset_rankings()
+        reset_rankings()
     
-    length = await query.acount()
+    length = query.count()
 
     i = 0
-    async for game in query.all():
+    for game in query.all():
         logger.info(f"Processing game {i + 1}/{length}: {game.tdf_name} (ID: {game.id})")
-        await update_sm5_rankings(game)
+        update_sm5_rankings(game)
         i += 1
 
-    #async for game in LaserballGame.objects.filter(ranked=True).order_by("start_time").all():
-    #    await update_laserball_rankings(game)
+    #for game in LaserballGame.objects.filter(ranked=True).order_by("start_time").all():
+    #    update_laserball_rankings(game)
 
 predictive_accuracy_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
-def _calculate_predictive_accuracy() -> float:
+def calculate_predictive_accuracy() -> float:
     """
     Get the predictive accuracy of the current ratings
     """
@@ -693,13 +695,13 @@ def _calculate_predictive_accuracy() -> float:
 
     return accuracy
 
-def calculate_predictive_accuracy() -> float:
+def calculate_predictive_accuracy_task() -> float:
     accuracy = cache.get("predictive_accuracy")
     last_run = cache.get("predictive_accuracy_last_run")
     
     now = timezone.now()
     if not last_run or (now - last_run) > timedelta(hours=24):
         cache.set("predictive_accuracy_last_run", now, timeout=None)
-        predictive_accuracy_executor.submit(_calculate_predictive_accuracy)
+        predictive_accuracy_executor.submit(calculate_predictive_accuracy)
     
     return accuracy if accuracy is not None else 0.0

@@ -136,7 +136,7 @@ class ScoreEvent(models.Model):
 
 # step updates
 class StepEvent(models.Model):
-    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="steps")
+    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="step_events")
     time = models.IntegerField() # time in milliseconds
     entity = models.ForeignKey("EntityStart", on_delete=models.CASCADE)
     delta = models.SmallIntegerField() # change in step count
@@ -147,7 +147,7 @@ class StepEvent(models.Model):
     
 # life count updates
 class LifeEvent(models.Model):
-    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="lives")
+    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="life_events")
     time = models.IntegerField() # time in milliseconds
     entity = models.ForeignKey("EntityStart", on_delete=models.CASCADE)
     delta = models.SmallIntegerField() # change in life count
@@ -158,7 +158,7 @@ class LifeEvent(models.Model):
 
 # shot count updates
 class ShotEvent(models.Model):
-    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="shots")
+    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="shot_events")
     time = models.IntegerField() # time in milliseconds
     entity = models.ForeignKey("EntityStart", on_delete=models.CASCADE)
     delta = models.SmallIntegerField() # change in shot count
@@ -169,7 +169,7 @@ class ShotEvent(models.Model):
     
 # missiles remaining updates
 class MissileEvent(models.Model):
-    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="missiles")
+    game = models.ForeignKey("Game", on_delete=models.CASCADE, related_name="missile_events")
     time = models.IntegerField() # time in milliseconds
     entity = models.ForeignKey("EntityStart", on_delete=models.CASCADE)
     delta = models.SmallIntegerField() # change in missile count
@@ -287,8 +287,12 @@ class Game(models.Model):
     duration = models.DurationField() # how long the game actually lasted, can be less than mission_duration if it ended early
     penalty_amount = models.SmallIntegerField() # how much score is added for each penalty, can be negative (ex: 0, -1000)
 
-    # FORIEGN KEYS AND RELATED NAMES
+    # FOREIGN KEYS AND RELATED NAMES
     # change_team_events is a related name for the ChangeTeamEvent model, which has a foreign key to this model
+    # step_events is a related name for the StepEvent model, which has a foreign key to this model
+    # life_events is a related name for the LifeEvent model, which has a foreign key to this model
+    # shot_events is a related name for the ShotEvent model, which has a foreign key to this model
+    # missile_events is a related name for the MissileEvent model, which has a foreign key to this model
     # teams is a related name for the Team model, which has a foreign key to this model
     # entity_starts is a related name for the EntityStart model, which has a foreign key to this model
     # events is a related name for the Event model, which has a foreign key to this model

@@ -2,6 +2,7 @@
 from django.core.cache import cache
 from django.apps import AppConfig
 from asgiref.sync import async_to_sync
+from .config import config
 import os
 import sys
 
@@ -12,8 +13,12 @@ async def startup_async():
     #await mass_parse_tdfs()
 
 def startup():
-    from laserskill.rating import calculate_predictive_accuracy
-    #calculate_predictive_accuracy()
+    # not debug
+    if not config.get("debug", True):
+        from laserskill.rating import calculate_predictive_accuracy_task
+        calculate_predictive_accuracy_task()
+
+        
 
 
 class LaserSkillConfig(AppConfig):
