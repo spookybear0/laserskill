@@ -135,13 +135,16 @@ async def mass_parse_tdfs(skip_rankings: bool = False, dont_skip: bool = False):
 
     files.sort(key=key_func) # sort by date in filename
 
-    # only keep files that are newer than the most recent game logged
+    # only keep files that are newer than a week before the most recent game logged
+    # (the week before is to account for timezones and any potential delays in uploading games)
 
     if not dont_skip:
         most_recent_game = await Game.objects.order_by("-start_time").afirst()
 
+        recent_game_start = most_recent_game.start_time.replace(tzinfo=None) - timedelta(days=8) if most_recent_game else None
+
         if most_recent_game:
-            files = [f for f in files if key_func(f) > most_recent_game.start_time.replace(tzinfo=None)]
+            files = [f for f in files if key_func(f) > recent_game_start]
 
     if skip_rankings:
         loop = asyncio.get_event_loop()
