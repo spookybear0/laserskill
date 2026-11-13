@@ -204,6 +204,8 @@
                                 ({% if rating_change > 0 %}+{% endif %}{{ "%.2f" % rating_change }})
                             </span>
                         </td>
+                    {% else %}
+                        <td></td>
                     {% endif %}
                 </tr>
                 {% else %}

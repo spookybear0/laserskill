@@ -12,7 +12,7 @@ else:
     day_no_leading_zero = "%-d"
 
 
-banners = Banner.objects.filter(is_active=True).order_by("-created_at")
+
 
 def environment(**options):
     """Configures the Jinja2 environment with Django global functions."""
@@ -38,7 +38,7 @@ def environment(**options):
             "Sum": Sum,
             "Avg": Avg,
             "sync_to_async": sync_to_async,
-            "banners": banners
+            "banners": Banner.objects.order_by("-created_at").all()
         }
     )
 
