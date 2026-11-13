@@ -123,7 +123,7 @@ async def download_tdfs(start_date: Optional[str] = None, game_type: Optional[st
                             tdf_file.write(await tdf_response.read())
 
     
-async def mass_parse_tdfs(skip_rankings: bool = False):
+async def mass_parse_tdfs(skip_rankings: bool = False, dont_skip: bool = False):
     tdf_dir = Path("tdfs")
     files = list(tdf_dir.glob("*.tdf"))
 
@@ -134,6 +134,14 @@ async def mass_parse_tdfs(skip_rankings: bool = False):
         return datetime.strptime(date, "%Y%m%d%H%M%S")
 
     files.sort(key=key_func) # sort by date in filename
+
+    # only keep files that are newer than the most recent game logged
+
+    if not dont_skip:
+        most_recent_game = await Game.objects.order_by("-start_time").afirst()
+
+        if most_recent_game:
+            files = [f for f in files if key_func(f) > most_recent_game.start_time.replace(tzinfo=None)]
 
     if skip_rankings:
         loop = asyncio.get_event_loop()

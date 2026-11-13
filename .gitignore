@@ -136,3 +136,5 @@ test.py
 assets/css/output.css
 assets/css/tailwindcss.exe
 assets/css/tailwindcss
+
+staticfiles/*
