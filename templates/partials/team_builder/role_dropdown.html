@@ -1,0 +1,32 @@
+<div class="dropdown">
+    <label tabindex="0" class="btn btn-circle btn-ghost flex items-center m-0 w-6 h-6">
+        <img id="role-image-{{identifier}}" src="{{ static('sm5/roles/{}.png'.format(role.name.lower())) }}" alt="{{role.name.title()}}" width="28" height="28">
+    </label>
+    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-16">
+        <li>
+            <a onclick="updateRoleImage(this, '{{identifier}}', 'commander')">
+                <img src="{{ static('sm5/roles/commander.png') }}" alt="Commander" width="28" height="28">
+            </a>
+        </li>
+        <li>
+            <a onclick="updateRoleImage(this, '{{identifier}}', 'heavy')">
+                <img src="{{ static('sm5/roles/heavy.png') }}" alt="Heavy" width="28" height="28">
+            </a>
+        </li>
+        <li>
+            <a onclick="updateRoleImage(this, '{{identifier}}', 'scout')">
+                <img src="{{ static('sm5/roles/scout.png') }}" alt="Scout" width="28" height="28">
+            </a>
+        </li>
+        <li>
+            <a onclick="updateRoleImage(this, '{{identifier}}', 'ammo')">
+                <img src="{{ static('sm5/roles/ammo.png') }}" alt="Ammo" width="28" height="28">
+            </a>
+        </li>
+        <li>
+            <a onclick="updateRoleImage(this, '{{identifier}}', 'medic')">
+                <img src="{{ static('sm5/roles/medic.png') }}" alt="Medic" width="28" height="28">
+            </a>
+        </li>
+    </ul>
+</div>

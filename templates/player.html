@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ player.codename }} | LaserSkill{% endblock %}
+
+{% block content %}
+
+
+<div class="bg-base-100 rounded-2xl shadow-xl p-10 mb-8 text-left flex flex-col justify-center gap-2">
+    <div class="flex items-center gap-2">
+        <h1 class="text-4xl font-bold">{{ player.codename }}</h1>
+        <a class="link link-primary" href="http://www.iplaylaserforce.com/mission-stats/?t={{ player.entity_id[1:] }}" target="_blank" rel="noopener noreferrer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-external-link-icon lucide-external-link"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+    </div>
+    {% if player.previous_codenames %}
+        <h2 class="text-md font-semibold text-gray-400">Also known as: {{ player.previous_codenames | join(', ') }}</h2>
+    {% endif %}
+    {% if player.home_site and player.home_site.id %}
+        <h2 class="text-md font-semibold text-gray-400"><a class="link link-primary" href="{{ url('site_detail', kwargs={'site_id': player.home_site.id}) }}">{{ player.home_site.name }}</a></h2>
+    {% endif %}
+    <h2 class="text-md font-semibold text-gray-400">{{ player.entity_id }}</h2>
+    {% if player.player_id %}
+        <h2 class="text-md font-semibold text-gray-400">{{ player.player_id }}</h2>
+    {% endif %}
+</div>
+
+{# charts and stats #}
+
+
+<div class="bg-base-100 rounded-2xl shadow-xl p-10 mb-8 text-left flex flex-col justify-center gap-2">
+    <h1 class="text-4xl font-bold">Stats</h1>
+    <div class="flex gap-2 mt-4 flex-col md:flex-row">
+        <div class="w-full md:w-1/2 relative">
+            <canvas id="playerRatingProgressionChart"></canvas>
+        </div>
+        <div class="w-full md:w-1/2 relative">
+            <canvas id="playerRoleRatingChart"></canvas>
+        </div>
+    </div>
+
+    <div class="flex gap-2 mt-4 flex-col">
+        <div class="flex justify-center items-center gap-2">
+            <select
+                id="role-filter"
+                name="role"
+                class="select select-bordered"
+                hx-get="{{ url('player_detail', kwargs={'entity_id': player.entity_id[1:]}) }}"
+                hx-trigger="change"
+                hx-swap="none"
+                hx-indicator="#chart-loading"
+            >100
+                <option value="0">All Roles</option>
+                {% for role in IntRole %}
+                    {% if role.name != 'OTHER' %}
+                        <option value="{{ role.value }}">{{ role.name.capitalize() }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <span id="chart-loading" class="htmx-indicator loading loading-spinner"></span>
+        <div class="w-1/4 relative">
+            <canvas id="playerWinPercentChart" class="mt-4"></canvas>
+        </div>
+    </div>
+</div>
+
+{% include 'partials/player/player_game_table.html' %}
+
+{% endblock %}
+
+{% block head %}
+
+<script>
+    let winPercentChart;
+
+    window.addEventListener('load', function() {
+        function createChart(canvasId, type, labels, values, title, axisLabel, colors) {
+            return new Chart(document.getElementById(canvasId), {
+                type,
+                data: {
+                    labels,
+                    datasets: [{
+                        label: axisLabel,
+                        data: values,
+                        borderColor: colors.border,
+                        backgroundColor: colors.background,
+                        borderWidth: 1,
+                        fill: type === 'line',
+                        tension: 0.1,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: title },
+                    },
+                    scales: {
+                        x: { title: { display: true, text: axisLabel === 'Player Rating' ? 'Date' : 'Role' } },
+                        y: { title: { display: true, text: axisLabel } },
+                    },
+                },
+            });
+        }
+
+        createChart(
+            'playerRatingProgressionChart',
+            'line',
+            {{ rating_progression_chart['labels'] | tojson }},
+            {{ rating_progression_chart['data'] | tojson }},
+            'Player Rating Over Time',
+            'Player Rating',
+            {
+                border: 'rgba(75, 192, 192, 1)',
+                background: 'rgba(75, 192, 192, 0.2)',
+            }
+        );
+    
+        createChart(
+            'playerRoleRatingChart',
+            'bar',
+            {{ role_rating_chart['labels'] | tojson }},
+            {{ role_rating_chart['data'] | tojson }},
+            'Player Role Ratings',
+            'Role Rating',
+            {
+                border: 'rgba(153, 102, 255, 1)',
+                background: 'rgba(153, 102, 255, 0.2)',
+            }
+        );
+
+        // role
+
+        winPercentChart = createChart(
+            'playerWinPercentChart',
+            'pie',
+            {{ charts['win_percent']['labels'] | tojson }},
+            {{ charts['win_percent']['data'] | tojson }},
+            'Player Win Rates',
+            'Games',
+            {
+                border: 'rgba(255, 159, 64, 1)',
+                background: [
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 206, 86, 0.2)',
+                    'rgba(75, 192, 192, 0.2)',
+                    'rgba(153, 102, 255, 0.2)',
+                    'rgba(255, 159, 64, 0.2)'
+                ],
+            }
+        );
+
+
+        document.body.addEventListener('htmx:afterRequest', (event) => {
+            // Ignore requests unrelated to the role dropdown.
+            if (event.detail.elt.id !== 'role-filter') return;
+        
+            const xhr = event.detail.xhr;
+        
+            if (xhr.status < 200 || xhr.status >= 300) {
+                console.error('Failed to load chart data:', xhr.status);
+                return;
+            }
+        
+            const charts = JSON.parse(xhr.responseText);
+        
+            winPercentChart.data.labels = charts['win_percent']['labels'];
+            winPercentChart.data.datasets[0].data = charts['win_percent']['data'];
+            winPercentChart.update();
+        });
+    });
+
+
+</script>
+
+{% endblock %}

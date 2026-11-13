@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LaserSkill{% endblock %}</title>
+    
+    <meta
+        name="description"
+        content="{% block meta_description %}Laserforce skill rankings, games, player ratings, and matchmaking.{% endblock %}"
+    >
+
+    <meta property="og:site_name" content="LaserSkill">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}LaserSkill{% endblock %}">
+    <meta
+        property="og:description"
+        content="{% block og_description %}Laserforce skill rankings, games, player ratings, and matchmaking.{% endblock %}"
+    >
+    <meta
+        property="og:url"
+        content="{{ request.build_absolute_uri(request.path) }}"
+    >
+
+
+    {% block og_image %}
+    {% endblock %}
+    <!-- Twitter / Discord-compatible large preview -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}LaserSkill{% endblock %}">
+    <meta
+        name="twitter:description"
+        content="{% block twitter_description %}Laserforce skill rankings, games, player ratings, and matchmaking.{% endblock %}"
+    >
+
+    {% block twitter_image %}
+    {% endblock %}
+
+    <link href="{{ static('css/output.css') }}" rel="stylesheet">
+    <link href="{{ static('css/calendar.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
+    <script type="module" src="https://unpkg.com/cally"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ static('js/base.js') }}"></script>
+
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-base-200 h-screen" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="drawer lg:drawer-open h-full">
+        <input id="main-drawer" type="checkbox" class="drawer-toggle inline" />
+        <script>
+            // restore drawer state on page load
+            (function() {
+                const state = localStorage.getItem('drawer-open');
+                if (state !== null) {
+                    document.getElementById('main-drawer').checked = (state === 'true');
+                }
+            })();
+          </script>
+        <div class="drawer-content h-full flex flex-col min-h-0">
+            <!-- navbar -->
+            <nav class="navbar w-full bg-base-300">
+                <label for="main-drawer" aria-label="open sidebar" class="btn btn-square btn-ghost drawer-button">
+                <!--toggle icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor" class="my-1.5 inline-block size-4"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"></path><path d="M9 4v16"></path><path d="M14 10l2 2l-2 2"></path></svg>
+                </label>
+                <div class="px-4">LaserSkill</div>
+            </nav>
+
+            <div class="container mx-auto p-8 flex-1 min-h-0 w-full flex flex-col sm:overflow-auto">
+                <div class="flex justify-center">
+                    {% for banner in banners %}
+                        {% if banner.is_visible %}
+                        <div class="mt-5 mb-10 rounded-xl p-4 w-full text-center w-full shadow-lg" style="background-color: {{ banner.color }}; color: {{ banner.text_color }};">
+                            {{ banner.content|safe }}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    
+        <div class="drawer-side is-drawer-close:overflow-visible">
+            <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+            <div class="flex min-h-full flex-col items-start bg-base-200 is-drawer-close:w-14 is-drawer-open:w-64">
+            <ul class="menu w-full grow">
+                <a href="{{ url('index') }}">
+                <li>
+                <button class="is-drawer-close:tooltip is-drawer-close:tooltip-right" data-tip="Homepage">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    <span class="is-drawer-close:hidden">Homepage</span>
+                </button>
+                </li>
+                </a>
+
+                <!--games-->
+                <a href="{{ url('games') }}">
+                <li>
+                <button class="is-drawer-close:tooltip is-drawer-close:tooltip-right" data-tip="Games">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gamepad2-icon lucide-gamepad-2"><line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></svg>
+                    <span class="is-drawer-close:hidden">Games</span>
+                </button>
+                </li>
+                </a>
+                <!--players-->
+                <a href="{{ url('players') }}">
+                <li>
+                <button class="is-drawer-close:tooltip is-drawer-close:tooltip-right" data-tip="Players">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-icon lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span class="is-drawer-close:hidden">Players</span>
+                </button>
+                </li>
+                </a>
+                <!--sites-->
+                <a href="{{ url('sites') }}">
+                <li>
+                <button class="is-drawer-close:tooltip is-drawer-close:tooltip-right" data-tip="Sites">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin-icon lucide-map-pin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span class="is-drawer-close:hidden">Sites</span>
+                </button>
+                </li>
+                </a>
+                <!--team_builder-->
+                <a href="{{ url('team_builder') }}">
+                <li>
+                <button class="is-drawer-close:tooltip is-drawer-close:tooltip-right" data-tip="Team Builder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scale-icon lucide-scale"><path d="M12 3v18"/><path d="m19 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1"/><path d="m5 8 3 8a5 5 0 0 1-6 0zV7"/><path d="M7 21h10"/></svg>
+                    <span class="is-drawer-close:hidden">Team Builder</span>
+                </button>
+                </li>
+                </a>
+                <!--about-->
+                <a href="{{ url('about') }}">
+                <li>
+                <button class="is-drawer-close:tooltip is-drawer-close:tooltip-right" data-tip="About">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info-icon lucide-info"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></svg>
+                    <span class="is-drawer-close:hidden">About</span>
+                </button>
+                </li>
+                </a>
+            </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

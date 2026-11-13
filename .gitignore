@@ -114,10 +114,11 @@ dmypy.json
 .pyre/
 
 
+config.json
+config_backup.json
 sm5_tdf/*
 laserball_tdf/*
 tdfs/*
-
 
 transfer.py
 .idea/* 
@@ -128,10 +129,12 @@ transfer.py
 *.csv
 
 sitemap.xml
+test.py
 
 # tailwind
 
-assets/css/tailwind.css
 assets/css/output.css
 assets/css/tailwindcss.exe
-config*.json
+assets/css/tailwindcss
+
+staticfiles/*
