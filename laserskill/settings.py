@@ -113,6 +113,11 @@ TEMPLATES = [
         "APP_DIRS": True,
         "OPTIONS": {
             "environment": "laserskill.jinja2.environment",
+            "extensions": [
+                "jinja2.ext.i18n",
+                "jinja2.ext.do",
+                "jinja2.ext.loopcontrols",
+            ],
         },
     }
 ]

@@ -44,24 +44,28 @@
                         </td>
                         <td><img src="{{ static('sm5/roles/' + entity.role.name.lower() + '.png') }}" alt="{{ entity.role.value }}" class="w-6 h-6"></td>
                         <td>{{ entity.entity_end.score }}</td>
-                        <td>{{ "%.2f" % entity.sm5_stats.mvp_points }}</td>
-                        {% if game.ranked %}
-                            <td>
-                                {{ "{:.2f}".format(ratings[entity.entity_id]["current"]) }} 
-                                {% set rating_change = ratings[entity.entity_id]["current"] - ratings[entity.entity_id]["previous"] %}
-                                <span style="color: {% if rating_change > 0 %}greenyellow{% elif rating_change < 0 %}orangered{% else %}gray{% endif %};">
-                                    ({% if rating_change > 0 %}+{% endif %}{{ "%.2f" % rating_change }})
-                                </span>
-                            </td>
+                        {% if entity.sm5_stats is none %}
+                            <td colspan="10" class="text-center">No SM5 Stats, player may have rejoined mid-game</td>
+                        {% else %}
+                            <td>{{ "%.2f" % entity.sm5_stats.mvp_points }}</td>
+                            {% if game.ranked %}
+                                <td>
+                                    {{ "{:.2f}".format(ratings[entity.entity_id]["current"]) }} 
+                                    {% set rating_change = ratings[entity.entity_id]["current"] - ratings[entity.entity_id]["previous"] %}
+                                    <span style="color: {% if rating_change > 0 %}greenyellow{% elif rating_change < 0 %}orangered{% else %}gray{% endif %};">
+                                        ({% if rating_change > 0 %}+{% endif %}{{ "%.2f" % rating_change }})
+                                    </span>
+                                </td>
+                            {% endif %}
+                            <td>{{ "%.2f" % entity.sm5_stats.kd_ratio }} ({{ entity.sm5_stats.shot_opponent }}/{{ entity.sm5_stats.times_zapped }})</td>
+                            <td>{{ "%.2f" % (entity.sm5_stats.accuracy*100) }}%</td>
+                            <td>{{ entity.sm5_stats.medic_hits_str }}</td>
+                            <td>{{ entity.sm5_stats.lives_left }}</td>
+                            <td>{{ entity.sm5_stats.shots_left }}</td>
+                            <td>{{ entity.sm5_stats.special_points }}</td>
+                            <td>{{ entity.sm5_stats.missiled_opponent }}</td>
+                            <td>{{ entity.sm5_stats.times_missiled }}</td>
                         {% endif %}
-                        <td>{{ "%.2f" % entity.sm5_stats.kd_ratio }} ({{ entity.sm5_stats.shot_opponent }}/{{ entity.sm5_stats.times_zapped }})</td>
-                        <td>{{ "%.2f" % (entity.sm5_stats.accuracy*100) }}%</td>
-                        <td>{{ entity.sm5_stats.medic_hits_str }}</td>
-                        <td>{{ entity.sm5_stats.lives_left }}</td>
-                        <td>{{ entity.sm5_stats.shots_left }}</td>
-                        <td>{{ entity.sm5_stats.special_points }}</td>
-                        <td>{{ entity.sm5_stats.missiled_opponent }}</td>
-                        <td>{{ entity.sm5_stats.times_missiled }}</td>
                     </tr>
                 {% endfor %}
                 <tr>
