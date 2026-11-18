@@ -42,6 +42,10 @@ class PlayerListView(ListView):
             db_field = db_field[:-1]
             logger.debug(f"Adjusted sorting field for site: {db_field}")
 
+        desc = db_field.startswith("-")
+        if db_field[0] == "-":
+            db_field = db_field[1:]
+
         games = (
             Game.objects
             .filter(
@@ -79,7 +83,7 @@ class PlayerListView(ListView):
                 Subquery(games[:1], output_field=IntegerField()),
                 Value(0)
             ),
-        ).order_by(db_field)
+        ).order_by(F(db_field).desc(nulls_last=True) if desc else F(db_field).asc(nulls_last=True))
         logger.debug("Queryset annotated and ordered")
         return queryset
 

@@ -16,7 +16,10 @@ async def startup_async():
 
 def startup():
     # not debug
-    if not config.get("debug", True):
+    if config.get("debug", True):
+        # we don' tneed to run the predictive accuracy task in debug mode
+        cache.set("predictive_accuracy", -1)
+    else:
         from laserskill.rating import calculate_predictive_accuracy_task
         calculate_predictive_accuracy_task()
 
