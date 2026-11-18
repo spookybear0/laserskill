@@ -645,11 +645,11 @@ def recalculate_rankings(start_game_id: Optional[int] = None):
 
 predictive_accuracy_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
+
 def calculate_predictive_accuracy() -> float:
     """
     Get the predictive accuracy of the current ratings
     """
-
     predictive_accuracy = cache.get("predictive_accuracy")
 
     if predictive_accuracy is not None:
@@ -662,7 +662,11 @@ def calculate_predictive_accuracy() -> float:
     total_games = 0
     correct_predictions = 0
 
-    for game in SM5Game.objects.filter(ranked=True).order_by("start_time").all():
+    games = SM5Game.objects.filter(ranked=True).order_by("start_time").all()
+
+    # check the second half of the games to see how accurate the predictions are
+    # while letting the system "warm up"
+    for i, game in enumerate(games[len(games)//2:]):
         teams = game.get_teams()
         
         if len(teams) != 2:
@@ -691,10 +695,13 @@ def calculate_predictive_accuracy() -> float:
             actual_result = [0.5, 0.5] # tie
 
         total_games += 1
+        
         if (prediction[0] > prediction[1] and actual_result[0] > actual_result[1]) or \
            (prediction[0] < prediction[1] and actual_result[0] < actual_result[1]) or \
            (prediction[0] == prediction[1] and actual_result[0] == actual_result[1]):
             correct_predictions += 1
+
+        logger.debug(f"Game {i + 1}/{len(games)//2}: {game.tdf_name} (ID: {game.id}) - Prediction: {prediction}, Actual: {actual_result}")
 
     accuracy = correct_predictions / total_games if total_games > 0 else 0
 
