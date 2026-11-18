@@ -76,6 +76,9 @@
         <table class="table w-full table-sm">
             <thead>
                 <tr>
+                    <th class="w-8">
+                        #
+                    </th>
                     <th>
                         <button
                             hx-get="{{ url('players')}}?sort={% if current_sort == 'codename' %}-codename{% else %}codename{% endif %}&page={{ page_obj.number }}&mode={{ current_mode }}"
@@ -148,6 +151,7 @@
             <tbody id="player-table">
                 {% for player in players %}
                 <tr>
+                    <td class="w-8">{{ loop.index + (page_obj.number - 1) * page_obj.paginator.per_page }}</td>
                     <td><a href="/players/{{ player.entity_id[1:] }}" class="link link-primary">{{ player.codename }}</a></td>
                     <td title="{{player.get_all_ratings_formatted()}}">{{ "%.3f"|format((player.rating if player.rating else 0.0)) }}</td>
                     <td>{{ player.home_site.name }}</td>

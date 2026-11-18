@@ -80,7 +80,7 @@ class PlayerListView(ListView):
                 output_field=FloatField(),
             ),
             games=Coalesce(
-                Subquery(games[:1], output_field=IntegerField()),
+                Subquery(games, output_field=IntegerField()),
                 Value(0)
             ),
         ).order_by(F(db_field).desc(nulls_last=True) if desc else F(db_field).asc(nulls_last=True))
