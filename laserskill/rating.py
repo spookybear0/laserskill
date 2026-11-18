@@ -666,7 +666,7 @@ def calculate_predictive_accuracy() -> float:
 
     # check the second half of the games to see how accurate the predictions are
     # while letting the system "warm up"
-    for i, game in enumerate(games[len(games)//2:]):
+    for i, game in enumerate(games[int(len(games)*0.2)]):
         teams = game.get_teams()
         
         if len(teams) != 2:
@@ -675,13 +675,27 @@ def calculate_predictive_accuracy() -> float:
         team1 = []
         team2 = []
 
+        skip_game = False
         for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
             team_color = entity_end.entity.team.color_name
             rating = entity_end.get_rating("previous", False, False)
+
+            # make sure each player has played enough games for us
+            # to trust their rating for our predictive accuracy calculation
+
+            # 3 is around 10 games played, which is enough to get a rough estimate of their skill
+            if rating.sigma > 3:
+                skip_game = True
+                break
+
+
             if team_color == (teams[0].color_name):
                 team1.append(rating)
             else:
                 team2.append(rating)
+
+        if skip_game:
+            continue
             
         prediction = model.predict_win([team1, team2])
 
@@ -701,7 +715,7 @@ def calculate_predictive_accuracy() -> float:
            (prediction[0] == prediction[1] and actual_result[0] == actual_result[1]):
             correct_predictions += 1
 
-        logger.debug(f"Game {i + 1}/{len(games)//2}: {game.tdf_name} (ID: {game.id}) - Prediction: {prediction}, Actual: {actual_result}")
+        logger.debug(f"Game {i + 1}/{int(len(games)*0.2)}: {game.tdf_name} (ID: {game.id}) {correct_predictions}/{total_games} ({correct_predictions/total_games:.2%})")
 
     accuracy = correct_predictions / total_games if total_games > 0 else 0
 

@@ -45,7 +45,7 @@ class Site:
         return f"{self.name} ({self.id})"
     
     def __repr__(self):
-        return f"Site(id={self.id}, name={self.name}, ipl_name={self.ipl_name}, timezone_offset={self.timezone_offset}, timezone_name={self.timezone_name}, competitive={self.competitive})"
+        return f"Site(id={self.id}, name={self.name}, ipl_name={self.ipl_name}, timezone={self.timezone}, competitive={self.competitive})"
 
 SITES = [
     Site(
@@ -313,6 +313,9 @@ class TeamType(Enum):
     # powerlaser stuttgart has a pink team
     PINK = _TeamDefinition(color="pink", element="Pink", css_class="pink-team", css_color_name="#FF69B4",
                            dim_color=RgbColor(red=68, green=17, blue=34), plain_color=RgbColor(red=255, green=105, blue=180))
+    # ricany has an orange team
+    ORANGE = _TeamDefinition(color="orange", element="Orange", css_class="orange-team", css_color_name="#FFA500",
+                             dim_color=RgbColor(red=68, green=34, blue=0), plain_color=RgbColor(red=255, green=165, blue=0))
 
     def __call__(cls, value, *args, **kw):
         if type(value) is str:
@@ -401,6 +404,8 @@ NAME_TO_TEAM = {
     "Purple": TeamType.PURPLE,
     # powerlaser stuttgart
     "Pink": TeamType.PINK,
+    # ricany
+    "Orange": TeamType.ORANGE,
 }
 
 # Ways we can lock a specific player to a position or group

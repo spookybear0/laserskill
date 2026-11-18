@@ -22,7 +22,6 @@ def startup():
     else:
         from laserskill.rating import calculate_predictive_accuracy_task
         calculate_predictive_accuracy_task()
-
         
 
 

@@ -32,14 +32,18 @@ def element_to_color(element: str) -> str:
         "Blue": "Blue",
         "Yellow": "Yellow",
         "Purple": "Purple",
+        "Pink": "Pink",
+        "Orange": "Orange",
         "Solid Green": "Green",
         "Solid Red": "Red",
         "Solid Blue": "Blue",
         "Solid Yellow": "Yellow",
         "Solid Purple": "Purple",
+        "Solid Pink": "Pink",
+        "Solid Orange": "Orange",
     }
 
-    return conversion[element]
+    return conversion.get(element, element)
 
 # tdf importing/uploading
 
@@ -125,7 +129,7 @@ async def download_tdfs(start_date: Optional[str] = None, game_type: Optional[st
     
 async def mass_parse_tdfs(skip_rankings: bool = False, dont_skip: bool = False):
     tdf_dir = Path("tdfs")
-    files = list(tdf_dir.glob("*.tdf"))
+    files = list(tdf_dir.glob("20-7-*.tdf"))
 
     def key_func(x):
         date = x.stem.split("-")[-1].replace(".tdf", "") # get the last part of the filename, which is the date
@@ -184,6 +188,7 @@ def parse_tdf(file_location: Path, skip_rankings: bool = False):
 
     teams = {} # index: Team
     entity_starts = {} # entity_id: EntityStart
+    all_entity_starts = []
     events = []
     scores = []
     entity_ends = []
@@ -279,6 +284,7 @@ def parse_tdf(file_location: Path, skip_rankings: bool = False):
                     battlesuit=battlesuit,
                     member_id=member_id
                 )
+                all_entity_starts.append(entity_starts[entity_id])
             case "4": # event
                 time = int(data[1])
                 event_type = EventType(data[2])
@@ -589,6 +595,7 @@ def parse_tdf(file_location: Path, skip_rankings: bool = False):
             "penalty_amount": penalty_amount,
             "teams": teams,
             "entity_starts": entity_starts,
+            "all_entity_starts": all_entity_starts,
             "events": events,
             "scores": scores,
             "entity_ends": entity_ends,
@@ -648,6 +655,7 @@ def process_sm5(
     penalty_amount: int,
     teams: Dict[int, Team],
     entity_starts: Dict["str", EntityStart],
+    all_entity_starts: List[EntityStart],
     events: List[Event],
     scores: List[ScoreEvent],
     entity_ends: List[EntityEnd],
@@ -759,20 +767,23 @@ def process_sm5(
 
         # save entity starts
 
-        entity_list = list(entity_starts.values())
 
-        for entity in entity_list:
+        for entity in all_entity_starts:
             entity.game = game
 
         EntityStart.objects.bulk_create(
-            entity_list,
+            all_entity_starts,
             batch_size=1000,
         )
+
+        for score in scores:
+            if score.entity:
+                score.entity_id = score.entity.pk
 
         # save entity starts to teams
         entities_by_team = {}
 
-        for entity in entity_list:
+        for entity in all_entity_starts:
             entities_by_team.setdefault(entity.team, []).append(entity)
 
         for team, team_entities in entities_by_team.items():
@@ -845,7 +856,7 @@ def process_sm5(
             entity_end.entity.entity_end = entity_end
 
         EntityStart.objects.bulk_update(
-            entity_list,
+            all_entity_starts,
             ["entity_end"],
             batch_size=1000,
         )
@@ -937,7 +948,7 @@ def process_sm5(
         }
 
         # check who's alive
-        for entity in entity_list:
+        for entity in all_entity_starts:
             if entity.type != EntityType.PLAYER:
                 continue
 
@@ -953,7 +964,7 @@ def process_sm5(
 
             entity_start = next(
                 (
-                    entity for entity in entity_list
+                    entity for entity in all_entity_starts
                     if entity.team and entity.team.color_enum == winning_color
                 ),
                 None,
@@ -1004,7 +1015,7 @@ def process_sm5(
             # get all players ahead of time
             player_entity_ids = [
                 entity.entity_id
-                for entity in entity_list
+                for entity in all_entity_starts
                 if entity.type == EntityType.PLAYER
             ]
 
@@ -1113,6 +1124,7 @@ def process_laserball(
     penalty_amount: int,
     teams: List[Team],
     entity_starts: List[EntityStart],
+    all_entity_starts: List[EntityStart],
     events: List[Event],
     scores: List[ScoreEvent],
     entity_ends: List[EntityEnd],

@@ -6,9 +6,9 @@ from laserskill.tdf import mass_parse_tdfs
 import time
 
 @click.command()
-@click.option('--skip-rankings', is_flag=True, default=True, help='Skip ranking after parsing TDFs')
+@click.option('--skip-rankings', is_flag=True, default=False, help='Skip ranking after parsing TDFs')
 @click.option('--dont-skip', is_flag=True, default=False, help='Bypass only looking for tdfs after most recently saved')
-async def mass_parse_tdfs_command(skip_rankings: bool = True, dont_skip: bool = False):
+async def mass_parse_tdfs_command(skip_rankings: bool = False, dont_skip: bool = False):
     """
     Command to mass parse TDFs.
     """

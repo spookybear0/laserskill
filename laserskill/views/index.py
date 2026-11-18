@@ -1,7 +1,7 @@
 from django.views import View
 from django.shortcuts import render
 from laserskill.models import Player, Game
-from laserskill.rating import calculate_predictive_accuracy
+from laserskill.rating import calculate_predictive_accuracy_task
 from django.core.cache import cache
 
 class IndexView(View):
@@ -12,7 +12,8 @@ class IndexView(View):
 
         predictive_accuracy = cache.get("predictive_accuracy")
 
-        calculate_predictive_accuracy()
+        if predictive_accuracy is None:
+            predictive_accuracy = calculate_predictive_accuracy_task()
         
         return render(request, "index.html", context={
             "total_players": Player.objects.count(),
