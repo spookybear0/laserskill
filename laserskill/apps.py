@@ -5,7 +5,9 @@ from asgiref.sync import async_to_sync
 from .config import config
 import os
 import sys
-
+import datetime
+import psycopg
+from psycopg.types.datetime import DatetimeDumper
 
 async def startup_async():
     from laserskill.tdf import download_legacy_tdf, download_tdfs, mass_parse_tdfs
@@ -28,3 +30,4 @@ class LaserSkillConfig(AppConfig):
         if os.environ.get("RUN_MAIN") == "true" or not os.environ.get("RUN_MAIN") and "runserver" in sys.argv:
             startup()
             async_to_sync(startup_async)()
+        psycopg.adapters.register_dumper(datetime.datetime, DatetimeDumper)
