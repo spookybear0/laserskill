@@ -245,14 +245,45 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
     if not game.ranked:
         return False
     
+    from .models import Player
+    
+    # pre load data
+
+    entity_starts = list(
+        game.entity_starts.filter(type=EntityType.PLAYER).select_related("team")
+    )
+    starts_by_id = {es.entity_id: es for es in entity_starts}
+
+    entity_ends = list(
+        game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity")
+    )
+
+    all_entity_ids = {es.entity_id for es in entity_starts} | {
+        ee.entity.entity_id for ee in entity_ends
+    }
+    players_by_id = {
+        p.entity_id: p for p in Player.objects.filter(entity_id__in=all_entity_ids)
+    }
+    
     logger.info(f"Updating SM5 rankings for game {game.tdf_name} (ID: {game.id})")
     
-    from .models import Event, Player, EventType, IntRole, EntityStart
+    from .models import Event, Player, EventType, IntRole, EntityStart, EntityEnd
 
-    # need to update previous rating and for each entity end object
+    
 
-    for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
-        player = Player.objects.filter(entity_id=entity_end.entity.entity_id).first()
+    # give every logged in player a rating for this site if they don't have one yet
+    for player in players_by_id.values():
+        if not player.ratings:
+            player.ratings = {
+                "global": deepcopy(BLANK_RATING_PER_SITE),
+                game.site_id: deepcopy(BLANK_RATING_PER_SITE),
+            }
+        elif game.site_id not in player.ratings:
+            player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
+
+    # record previous rating and for each entity end object
+    for entity_end in entity_ends:
+        player = players_by_id.get(entity_end.entity.entity_id)
 
         if player:
             ratings = player.ratings
@@ -261,10 +292,7 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
 
         # ensure that this player has a rating for this site, if not, create a new one
 
-        if game.site_id not in ratings and player:
-            ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-            player.ratings = ratings
-            player.save()
+        role_name = introle_to_name(entity_end.entity.role)
 
         entity_end.ratings = {
             "previous": {
@@ -273,16 +301,16 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
                     "sigma": ratings["global"]["sm5"]["sigma"]
                 },
                 "global_role": {
-                    "mu": ratings["global"][introle_to_name(entity_end.entity.role)]["mu"],
-                    "sigma": ratings["global"][introle_to_name(entity_end.entity.role)]["sigma"]
+                    "mu": ratings["global"][role_name]["mu"],
+                    "sigma": ratings["global"][role_name]["sigma"]
                 },
                 "site": {
                     "mu": ratings[game.site_id]["sm5"]["mu"],
                     "sigma": ratings[game.site_id]["sm5"]["sigma"]
                 },
                 "site_role": {
-                    "mu": ratings[game.site_id][introle_to_name(entity_end.entity.role)]["mu"],
-                    "sigma": ratings[game.site_id][introle_to_name(entity_end.entity.role)]["sigma"]
+                    "mu": ratings[game.site_id][role_name]["mu"],
+                    "sigma": ratings[game.site_id][role_name]["sigma"]
                 }
             }
         }
@@ -305,29 +333,25 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
         else:
             return
 
-        shooter = EntityStart.objects.filter(entity_id=event.entity1).first()
-        shooter_player = Player.objects.filter(entity_id=shooter.entity_id).first()
-        if shooter_player:
-            # make sure we have a rating for this site, if not, create a new one
-            if game.site_id not in shooter_player.ratings:
-                shooter_player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                shooter_player.save()
-            shooter_rating = shooter_player.ratings
-        else:
-            # not logged in, we could assume the default rating
+        shooter = starts_by_id.get(event.entity1)
+        target = starts_by_id.get(event.entity2)
+
+        if not shooter or not target:
+            # someone is not logged in, we could assume the default rating
             # but we don't want to unfairly affect the ratings of logged in players
             # skip this event if the shooter is not logged in
             return
 
-        target = EntityStart.objects.filter(entity_id=event.entity2).first()
-        target_player = Player.objects.filter(entity_id=target.entity_id).first()
-        if target_player:
-            if game.site_id not in target_player.ratings:
-                target_player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                target_player.save()
-            target_rating = target_player.ratings
-        else:
+        shooter_player = players_by_id.get(shooter.entity_id)
+        target_player = players_by_id.get(target.entity_id)
+        if not shooter_player or not target_player:
             return
+
+        shooter_rating = shooter_player.ratings
+        target_rating = target_player.ratings
+
+        shooter_role = introle_to_name(shooter.role)
+        target_role = introle_to_name(target.role)
 
         # global
 
@@ -343,8 +367,8 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
 
         global_role_out = model.rate(
             [
-                [Rating(shooter_rating["global"][introle_to_name(shooter.role)]["mu"], shooter_rating["global"][introle_to_name(shooter.role)]["sigma"])],
-                [Rating(target_rating["global"][introle_to_name(target.role)]["mu"], target_rating["global"][introle_to_name(target.role)]["sigma"])]
+                [Rating(shooter_rating["global"][shooter_role]["mu"], shooter_rating["global"][shooter_role]["sigma"])],
+                [Rating(target_rating["global"][target_role]["mu"], target_rating["global"][target_role]["sigma"])]
             ],
             ranks=[0, 1]
         )
@@ -363,8 +387,8 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
 
         site_role_out = model.rate(
             [
-                [Rating(shooter_rating[game.site_id][introle_to_name(shooter.role)]["mu"], shooter_rating[game.site_id][introle_to_name(shooter.role)]["sigma"])],
-                [Rating(target_rating[game.site_id][introle_to_name(target.role)]["mu"], target_rating[game.site_id][introle_to_name(target.role)]["sigma"])]
+                [Rating(shooter_rating[game.site_id][shooter_role]["mu"], shooter_rating[game.site_id][shooter_role]["sigma"])],
+                [Rating(target_rating[game.site_id][target_role]["mu"], target_rating[game.site_id][target_role]["sigma"])]
             ],
             ranks=[0, 1]
         )
@@ -388,17 +412,17 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
             "mu": (global_out[0][0].mu - shooter_rating["global"]["sm5"]["mu"]) * weight_mu + shooter_rating["global"]["sm5"]["mu"],
             "sigma": (global_out[0][0].sigma - shooter_rating["global"]["sm5"]["sigma"]) * weight_sigma + shooter_rating["global"]["sm5"]["sigma"]
         })
-        shooter_rating["global"][introle_to_name(shooter.role)].update({
-            "mu": (global_role_out[0][0].mu - shooter_rating["global"][introle_to_name(shooter.role)]["mu"]) * weight_mu * role_weight_mu + shooter_rating["global"][introle_to_name(shooter.role)]["mu"],
-            "sigma": (global_role_out[0][0].sigma - shooter_rating["global"][introle_to_name(shooter.role)]["sigma"]) * weight_sigma * role_weight_sigma + shooter_rating["global"][introle_to_name(shooter.role)]["sigma"]
+        shooter_rating["global"][shooter_role].update({
+            "mu": (global_role_out[0][0].mu - shooter_rating["global"][shooter_role]["mu"]) * weight_mu * role_weight_mu + shooter_rating["global"][shooter_role]["mu"],
+            "sigma": (global_role_out[0][0].sigma - shooter_rating["global"][shooter_role]["sigma"]) * weight_sigma * role_weight_sigma + shooter_rating["global"][shooter_role]["sigma"]
         })
         shooter_rating[game.site_id]["sm5"].update({
             "mu": (site_out[0][0].mu - shooter_rating[game.site_id]["sm5"]["mu"]) * weight_mu + shooter_rating[game.site_id]["sm5"]["mu"],
             "sigma": (site_out[0][0].sigma - shooter_rating[game.site_id]["sm5"]["sigma"]) * weight_sigma + shooter_rating[game.site_id]["sm5"]["sigma"]
         })
-        shooter_rating[game.site_id][introle_to_name(shooter.role)].update({
-            "mu": (site_role_out[0][0].mu - shooter_rating[game.site_id][introle_to_name(shooter.role)]["mu"]) * weight_mu * role_weight_mu + shooter_rating[game.site_id][introle_to_name(shooter.role)]["mu"],
-            "sigma": (site_role_out[0][0].sigma - shooter_rating[game.site_id][introle_to_name(shooter.role)]["sigma"]) * weight_sigma * role_weight_sigma + shooter_rating[game.site_id][introle_to_name(shooter.role)]["sigma"]
+        shooter_rating[game.site_id][shooter_role].update({
+            "mu": (site_role_out[0][0].mu - shooter_rating[game.site_id][shooter_role]["mu"]) * weight_mu * role_weight_mu + shooter_rating[game.site_id][shooter_role]["mu"],
+            "sigma": (site_role_out[0][0].sigma - shooter_rating[game.site_id][shooter_role]["sigma"]) * weight_sigma * role_weight_sigma + shooter_rating[game.site_id][shooter_role]["sigma"]
         })
 
         # update target ratings
@@ -418,17 +442,17 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
             "mu": (global_out[1][0].mu - target_rating["global"]["sm5"]["mu"]) * weight_mu + target_rating["global"]["sm5"]["mu"],
             "sigma": (global_out[1][0].sigma - target_rating["global"]["sm5"]["sigma"]) * weight_sigma + target_rating["global"]["sm5"]["sigma"]
         })
-        target_rating["global"][introle_to_name(target.role)].update({
-            "mu": (global_role_out[1][0].mu - target_rating["global"][introle_to_name(target.role)]["mu"]) * weight_mu * role_weight_mu + target_rating["global"][introle_to_name(target.role)]["mu"],
-            "sigma": (global_role_out[1][0].sigma - target_rating["global"][introle_to_name(target.role)]["sigma"]) * weight_sigma * role_weight_sigma + target_rating["global"][introle_to_name(target.role)]["sigma"]
+        target_rating["global"][target_role].update({
+            "mu": (global_role_out[1][0].mu - target_rating["global"][target_role]["mu"]) * weight_mu * role_weight_mu + target_rating["global"][target_role]["mu"],
+            "sigma": (global_role_out[1][0].sigma - target_rating["global"][target_role]["sigma"]) * weight_sigma * role_weight_sigma + target_rating["global"][target_role]["sigma"]
         })
         target_rating[game.site_id]["sm5"].update({
             "mu": (site_out[1][0].mu - target_rating[game.site_id]["sm5"]["mu"]) * weight_mu + target_rating[game.site_id]["sm5"]["mu"],
             "sigma": (site_out[1][0].sigma - target_rating[game.site_id]["sm5"]["sigma"]) * weight_sigma + target_rating[game.site_id]["sm5"]["sigma"]
         })
-        target_rating[game.site_id][introle_to_name(target.role)].update({
-            "mu": (site_role_out[1][0].mu - target_rating[game.site_id][introle_to_name(target.role)]["mu"]) * weight_mu * role_weight_mu + target_rating[game.site_id][introle_to_name(target.role)]["mu"],
-            "sigma": (site_role_out[1][0].sigma - target_rating[game.site_id][introle_to_name(target.role)]["sigma"]) * weight_sigma * role_weight_sigma + target_rating[game.site_id][introle_to_name(target.role)]["sigma"]
+        target_rating[game.site_id][target_role].update({
+            "mu": (site_role_out[1][0].mu - target_rating[game.site_id][target_role]["mu"]) * weight_mu * role_weight_mu + target_rating[game.site_id][target_role]["mu"],
+            "sigma": (site_role_out[1][0].sigma - target_rating[game.site_id][target_role]["sigma"]) * weight_sigma * role_weight_sigma + target_rating[game.site_id][target_role]["sigma"]
         })
         
         # save ratings
@@ -450,30 +474,18 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
 
     # rate game
 
+    # get teams from cache
+
     team1 = []
     team2 = []
-
     teams = game.get_teams()
-
-    for entity_start in game.entity_starts.filter(type=EntityType.PLAYER).select_related("team").all():
-        team_color = entity_start.team.color_name
-        if team_color == (teams[0].color_name):
-            player = Player.objects.filter(entity_id=entity_start.entity_id).first()
-
-            # ensure that this player has a rating for this site, if not, create a new one
-            if player and game.site_id not in player.ratings:
-                player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                player.save()
-
-            team1.append((player if player else FakeDefaultPlayer(game.site_id), entity_start))
+    for entity_start in entity_starts:
+        player = players_by_id.get(entity_start.entity_id)
+        pair = (player if player else FakeDefaultPlayer(game.site_id), entity_start)
+        if entity_start.team.color_name == teams[0].color_name:
+            team1.append(pair)
         else:
-            player = Player.objects.filter(entity_id=entity_start.entity_id).first()
-
-            if player and game.site_id not in player.ratings:
-                player.ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-                player.save()
-
-            team2.append((player if player else FakeDefaultPlayer(game.site_id), entity_start))
+            team2.append(pair)
 
     # general ratings
     team1_general = list(map(lambda pair: Rating(pair[0].ratings["global"]["sm5"]["mu"], pair[0].ratings["global"]["sm5"]["sigma"]), team1))
@@ -492,12 +504,10 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_general_new):
         player.ratings["global"]["sm5"]["mu"] = rating.mu
         player.ratings["global"]["sm5"]["sigma"] = rating.sigma
-        player.save()
 
     for (player, es), rating in zip(team2, team2_general_new):
         player.ratings["global"]["sm5"]["mu"] = rating.mu
         player.ratings["global"]["sm5"]["sigma"] = rating.sigma
-        player.save()
 
     # general role-specific ratings
     team1_general_role = list(map(lambda pair: Rating(pair[0].ratings["global"][introle_to_name(pair[1].role)]["mu"], pair[0].ratings["global"][introle_to_name(pair[1].role)]["sigma"]), team1))
@@ -509,12 +519,10 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_general_role_new):
         player.ratings["global"][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings["global"][introle_to_name(es.role)]["sigma"] = rating.sigma
-        player.save()
     
     for (player, es), rating in zip(team2, team2_general_role_new):
         player.ratings["global"][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings["global"][introle_to_name(es.role)]["sigma"] = rating.sigma
-        player.save()
 
     # site-specific ratings
     team1_site = list(map(lambda pair: Rating(pair[0].ratings[game.site_id]["sm5"]["mu"], pair[0].ratings[game.site_id]["sm5"]["sigma"]), team1))
@@ -526,12 +534,10 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_site_new):
         player.ratings[game.site_id]["sm5"]["mu"] = rating.mu
         player.ratings[game.site_id]["sm5"]["sigma"] = rating.sigma
-        player.save()
 
     for (player, es), rating in zip(team2, team2_site_new):
         player.ratings[game.site_id]["sm5"]["mu"] = rating.mu
         player.ratings[game.site_id]["sm5"]["sigma"] = rating.sigma
-        player.save()
 
     # site-specific role ratings
 
@@ -544,51 +550,52 @@ def update_sm5_rankings(game: "SM5Game") -> bool:
     for (player, es), rating in zip(team1, team1_site_role_new):
         player.ratings[game.site_id][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings[game.site_id][introle_to_name(es.role)]["sigma"] = rating.sigma
-        player.save()
 
     for (player, es), rating in zip(team2, team2_site_role_new):
         player.ratings[game.site_id][introle_to_name(es.role)]["mu"] = rating.mu
         player.ratings[game.site_id][introle_to_name(es.role)]["sigma"] = rating.sigma
-        player.save()
 
-    # need to update current rating and for each entity end object
-
-    for entity_end in game.entity_ends.filter(entity__type=EntityType.PLAYER).select_related("entity").all():
-        player = Player.objects.filter(entity_id=entity_end.entity.entity_id).first()
+    # record current ratings (after game) for each entity end
+    for entity_end in entity_ends:
+        player = players_by_id.get(entity_end.entity.entity_id)
 
         if player:
             ratings = player.ratings
         else:
             ratings = {"global": deepcopy(BLANK_RATING_PER_SITE), game.site_id: deepcopy(BLANK_RATING_PER_SITE)}
 
-        if game.site_id not in ratings:
-            ratings[game.site_id] = deepcopy(BLANK_RATING_PER_SITE)
-            player.save()
-
-        entity_end.ratings.update({
-            "current": {
-                "global": {
-                    "mu": ratings["global"]["sm5"]["mu"],
-                    "sigma": ratings["global"]["sm5"]["sigma"]
-                },
-                "global_role": {
-                    "mu": ratings["global"][introle_to_name(entity_end.entity.role)]["mu"],
-                    "sigma": ratings["global"][introle_to_name(entity_end.entity.role)]["sigma"]
-                },
-                "site": {
-                    "mu": ratings[game.site_id]["sm5"]["mu"],
-                    "sigma": ratings[game.site_id]["sm5"]["sigma"]
-                },
-                "site_role": {
-                    "mu": ratings[game.site_id][introle_to_name(entity_end.entity.role)]["mu"],
-                    "sigma": ratings[game.site_id][introle_to_name(entity_end.entity.role)]["sigma"]
+        role_name = introle_to_name(entity_end.entity.role)
+        entity_end.ratings.update(
+            {
+                "current": {
+                    "global": {
+                        "mu": ratings["global"]["sm5"]["mu"],
+                        "sigma": ratings["global"]["sm5"]["sigma"],
+                    },
+                    "global_role": {
+                        "mu": ratings["global"][role_name]["mu"],
+                        "sigma": ratings["global"][role_name]["sigma"],
+                    },
+                    "site": {
+                        "mu": ratings[game.site_id]["sm5"]["mu"],
+                        "sigma": ratings[game.site_id]["sm5"]["sigma"],
+                    },
+                    "site_role": {
+                        "mu": ratings[game.site_id][role_name]["mu"],
+                        "sigma": ratings[game.site_id][role_name]["sigma"],
+                    },
                 }
             }
-        })
+        )
 
-        entity_end.save()
+    # update database from the in memory ratings (all at once!)
+    if players_by_id:
+        Player.objects.bulk_update(players_by_id.values(), ["ratings"])
+    if entity_ends:
+        EntityEnd.objects.bulk_update(entity_ends, ["ratings"])
 
     return True
+
 
 def update_laserball_rankings(game: "Game"):
     pass # TODO: rankings for laserball games
