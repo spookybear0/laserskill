@@ -187,7 +187,7 @@ SITES = [
         ipl_name="Atlantis Laser Tag, San Diego",
         timezone=ZoneInfo("America/Los_Angeles"),
         competitive=False
-    ),
+    )
 ]
 
 SITE_BY_ID = {site.id: site for site in SITES}

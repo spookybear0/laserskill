@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from .models import Game
     from .models.sm5 import SM5Game
 
-from openskill.models import PlackettLuceRating, PlackettLuce
+from openskill.models import BradleyTerryFull, BradleyTerryFullRating
 from openskill.models.weng_lin.common import phi_major
 import logging
 from asgiref.sync import sync_to_async
@@ -21,13 +21,16 @@ logger = logging.getLogger(__name__)
 SM5_RANK_VERSION = 1
 LASERBALL_RANK_VERSION = 1
 
+
+
 # CONSTANTS
+# preliminarily optimized parameters using data before 11/13/2026
 
 MU = 25
 SIGMA = 25 / 3
-BETA = 25 / 6
+BETA = 17.886606441316395 # default: 25/6
 KAPPA = 0.0001
-TAU = 25 / 275  # default: 25/300 (for rating volatility, higher = more volatile ratings)
+TAU = 0.0100881672465793 # default: 25/300
 FEED = 0.8
 # How much of an average body's value is handed straight back to the enemy by
 # being farmable. 0 = stock openskill behaviour (an extra body is worth its
@@ -54,18 +57,18 @@ FEED = 0.8
 # the multipliers for mu and sigma are both 1
 
 
-SM5_HIT_WEIGHT_MU = 0.02  # skill weight for hits in sm5
-SM5_HIT_WEIGHT_SIGMA = 0.01  # uncertainty weight for hits in sm5
+SM5_HIT_WEIGHT_MU = 0.07004238254666625 # skill weight for hits in sm5
+SM5_HIT_WEIGHT_SIGMA = 1.66034550691544  # uncertainty weight for hits in sm5
 
-SM5_HIT_MEDIC_WEIGHT_MU = 0.04  # skill weight for medic hits in sm5
-SM5_HIT_MEDIC_WEIGHT_SIGMA = 0.01  # uncertainty weight for medic hits in sm5
+SM5_HIT_MEDIC_WEIGHT_MU = 0.3402655937736689  # skill weight for medic hits in sm5
+SM5_HIT_MEDIC_WEIGHT_SIGMA = 0.28275768226203557  # uncertainty weight for medic hits in sm5
 
 
-SM5_MISSILE_WEIGHT_MU = 0.05  # skill weight for missile hits in sm5
-SM5_MISSILE_WEIGHT_SIGMA = 0.01  # uncertainty weight for missile hits in sm5
+SM5_MISSILE_WEIGHT_MU = 0.2665425870939424  # skill weight for missile hits in sm5
+SM5_MISSILE_WEIGHT_SIGMA = 0.6207413599244472  # uncertainty weight for missile hits in sm5
 
-SM5_MISSILE_MEDIC_WEIGHT_MU = 0.1  # skill weight for medic missiles in sm5
-SM5_MISSILE_MEDIC_WEIGHT_SIGMA = 0.01  # uncertainty weight for medic missiles in sm5
+SM5_MISSILE_MEDIC_WEIGHT_MU = 0.1756921643092035  # skill weight for medic missiles in sm5
+SM5_MISSILE_MEDIC_WEIGHT_SIGMA = 0.2636323150963198  # uncertainty weight for medic missiles in sm5
 
 # sm5 role specific multipliers (multiply the above weights by these for role specific ratings)
 
@@ -94,7 +97,7 @@ LB_GOAL_WEIGHT_SIGMA = 0.75  # uncertainty weight for goals in laserball
 LB_ASSIST_WEIGHT_MU = 0.2  # skill weight for assists in laserball
 LB_ASSIST_WEIGHT_SIGMA = 0.2  # uncertainty weight for assists in laserball
 
-def predict_win(self, teams: List[List[PlackettLuceRating]]) -> List[Union[int, float]]:
+def predict_win(self, teams: List[List[BradleyTerryFullRating]]) -> List[Union[int, float]]:
     # Check Arguments
     self._check_teams(teams)
 
@@ -134,12 +137,12 @@ def predict_win(self, teams: List[List[PlackettLuceRating]]) -> List[Union[int, 
         return [result, 1 - result]
 
     # TODO: Implement uneven team adjustment for 3 and 4 teams
-    return PlackettLuce.predict_win(self, teams)
+    return BradleyTerryFull.predict_win(self, teams)
 
-PlackettLuce.predict_win = predict_win
+BradleyTerryFull.predict_win = predict_win
 
-model = PlackettLuce(MU, SIGMA, BETA, KAPPA, tau=TAU)
-Rating = PlackettLuceRating
+model = BradleyTerryFull(MU, SIGMA, BETA, KAPPA, tau=TAU)
+Rating = BradleyTerryFullRating
 
 def introle_to_name(role: int):
     from .models.types import IntRole
@@ -618,7 +621,7 @@ def recalculate_rankings(start_game_id: Optional[int] = None):
 
     if start_game_id is not None:
         game = SM5Game.objects.filter(id=start_game_id).first()
-        query = query.filter(start_time__gte=game.start_time)
+        query = query.filter(start_time__gt=game.start_time)
     else:
         reset_rankings()
     

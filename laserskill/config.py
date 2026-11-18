@@ -18,7 +18,7 @@ default_config = {
     "db_user": "laserforce_ranking",
     "db_password": "",
     "db_port": 5432,
-    "db_name": "laserforce_ranking",
+    "db_name": "laserskill",
     "debug": False,
     "secret_key": get_random_secret_key(),
     "sentry_dsn": "",
