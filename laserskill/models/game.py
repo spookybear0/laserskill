@@ -346,7 +346,7 @@ class Game(models.Model):
         Calculates the win chance for the game based on the players' ratings.
         The timeframe can be "before", "after", or None.
 
-        "before" will use the previous ratings of the players and show the prediciton based on data only up to the start of the game.
+        "before" will use the previous ratings of the players and show the prediction based on data only up to the start of the game.
         "after" will use ratings recorded directly after the game ended, so it will include the game itself in the prediction.
         None will use the current ratings of the players, so it will include all games played by the players up to now.
 

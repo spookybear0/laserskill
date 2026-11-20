@@ -129,7 +129,7 @@ async def download_tdfs(start_date: Optional[str] = None, game_type: Optional[st
     
 async def mass_parse_tdfs(skip_rankings: bool = False, dont_skip: bool = False):
     tdf_dir = Path("tdfs")
-    files = list(tdf_dir.glob("20-7-*.tdf"))
+    files = list(tdf_dir.glob("*.tdf"))
 
     def key_func(x):
         date = x.stem.split("-")[-1].replace(".tdf", "") # get the last part of the filename, which is the date
